@@ -2,9 +2,15 @@
 
 import spacy
 from spacy.matcher import PhraseMatcher
+import logging
 
-# Load spaCy English model
-nlp = spacy.load("en_core_web_sm")
+# Load spaCy English model with error handling
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    logging.error("spaCy model 'en_core_web_sm' not found. Please install it with: python -m spacy download en_core_web_sm")
+    # Fallback to basic processing without spaCy
+    nlp = None
 
 # Seed list of common symptoms — you can expand this easily
 SYMPTOM_LIST = [
@@ -47,21 +53,35 @@ matcher.add("SYMPTOMS", patterns)
 
 def extract_symptoms(text: str):
     """Extracts symptoms using spaCy phrase matcher + fallback keyword search."""
-    doc = nlp(text)
-
-    # spaCy matcher
-    matches = matcher(doc)
-    found = set([doc[start:end].text.lower() for match_id, start, end in matches])
-
+    found = set()
+    
     # Fallback keyword matching (simple substring search)
+    text_lower = text.lower()
     for symptom in SYMPTOM_LIST:
-        if symptom in text.lower() and symptom not in found:
+        if symptom in text_lower:
             found.add(symptom)
-
+    
+    entities = {}
+    
+    # Use spaCy if available
+    if nlp is not None:
+        try:
+            doc = nlp(text)
+            
+            # spaCy matcher
+            matches = matcher(doc)
+            spacy_found = set([doc[start:end].text.lower() for match_id, start, end in matches])
+            found.update(spacy_found)
+            
+            # Extract entities
+            entities = {ent.label_: ent.text for ent in doc.ents}
+        except Exception as e:
+            logging.error(f"Error processing text with spaCy: {e}")
+    
     # Return standardized structure
     return {
         "symptoms": list(found),
-        "entities": {ent.label_: ent.text for ent in doc.ents}
+        "entities": entities
     }
 
 
