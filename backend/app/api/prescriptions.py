@@ -28,6 +28,7 @@ def generate_prescription_pdf(symptom_record, prescription_body: str, user_email
     pdf.add_page()
 
     # Header
+    
     pdf.set_font("Helvetica", "B", 18)
     pdf.cell(0, 10, "AI Health Assistant - Prescription", ln=True, align="C")
 
